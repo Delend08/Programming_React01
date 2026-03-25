@@ -21,3 +21,7 @@ const changeNumber = (n) => {
     number += n;
     resultH1.innerHTML = number;
 }
+
+const reset = () => {
+    resultH1.innerHTML = 0;
+}
