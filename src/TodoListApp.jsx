@@ -1,26 +1,29 @@
-
+import './todolist.css'
 
 function TodoListApp() {
 
     return (
-        <div>
-            <h1>No Think, Do it.</h1>
-            <form>
-                <input type="text" name="Todo" id="Todo" />
-                <button type="submit">Add</button>
+        <div className="todo">
+            <h1 className="todo__title">No Think, Do it.</h1>
+            <form className="todo__form">
+                <input type="text" placeholder="할 일을 입력하세요." className="todo__input" />
+                <button type="submit" className="todo__button todo__button--add">Add</button>
             </form>
-            <ul id="TodoList">
-                <li>
-                    <input type="checkbox" id="check1" />
-                    <label htmlFor="check1">think</label>
-                    <button>✏️</button>
-                    <button>❌</button>
+            <ul className="todo__list">
+                <li className="todo__item todo__item--empty">
+                    <p>할 일 없음.</p>
                 </li>
-                <li>
-                    <input type="checkbox" id="check2" />
-                    <label htmlFor="check2">do</label>
-                    <button>✏️</button>
-                    <button>❌</button>
+                <li className="todo__item todo__item--complete">
+                    <input type="checkbox" id="check1" className="todo__check"/>
+                    <label htmlFor="check1" className="todo__label">think</label>
+                    <button className="todo__button todo__button--edit">✏️</button>
+                    <button className="todo__button todo__button--delete">❌</button>
+                </li>
+                <li className="todo__item todo__item--complete">
+                    <input type="checkbox" id="check2" className="todo__check"/>
+                    <label htmlFor="check2" className="todo__label">do</label>
+                    <button className="todo__button todo__button--edit">✏️</button>
+                    <button className="todo__button todo__button--delete">❌</button>
                 </li>
             </ul>
         </div>
