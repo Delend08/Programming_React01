@@ -3,7 +3,7 @@
     min-width: 400px; */
     width: max(80%, 400px); /* 보통: 80%, 최소: 400px */
     margin: 20px auto; /* 위아래: 20px, 좌우: 여백 균등 분배 */
-    background-color: #f9f9f9;
+    background-color: #e9b7fdf6;
     padding: 20px;
     border-radius: 16px;
     box-shadow: 0 2px 4px rgb(10,10,10, 0.25); /* 세로: 아래로 2px, blur: 4px */
@@ -17,7 +17,7 @@
 .todo__input {
     padding: 10px;
     font-size: 1.2rem;
-    border: 1px solid #ccc;
+    border: 1px solid #d874fff6;
     border-radius: 8px;
     margin-right: 10px;
     flex: 1;    /* display: flex 안의 아이템 중 여유 공간 만큼 늘리자 */
