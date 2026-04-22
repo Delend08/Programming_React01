@@ -13,7 +13,7 @@ export default function TodoList({ todos }) {
             {
                 todos.length > 0 &&
                 todos.map(todo => 
-                    <TodoItem todo={todo} />
+                    <TodoItem key={todo.id} todo={todo} />
                 )
             }
         </ul>
