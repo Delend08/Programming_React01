@@ -1,13 +1,25 @@
 import TodoHeader from './components/TodoHeader.jsx';
 import TodoAdder from './components/TodoAdder.jsx';
 import TodoList from './components/TodoList.jsx';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Todo } from './type/Todo.jsx';
 import './todolist.css'
 
-function TodoListApp() {
-    const [todos, setTodos] = useState([]);
+const TODOS_STORAGE_KEY = 'todos';
 
+function TodoListApp() {
+
+    const initTodo = () => {
+        const savedTodo = localStorage.getItem(TODOS_STORAGE_KEY);
+        return JSON.parse(savedTodo) ?? [];
+    }
+
+    const [todos, setTodos] = useState(initTodo); // initTodos 함수는 react 처음 한번 호출
+    
+
+    useEffect(() => {
+        localStorage.setItem(TODOS_STORAGE_KEY, JSON.stringify(todos));
+    }, [todos])
     const addTodo = (text) => setTodos((todos) => [
         ...todos,
         new Todo(text)
