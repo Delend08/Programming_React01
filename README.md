@@ -23,3 +23,5 @@ npm create vite@latest .
 - `{조건식 && 참}`
 - `{!조건식 && 거짓}`
 - localStorage, `useEffect()`
+- `style{{}}`
+- HomeApp: state 값을 변경하여 그에 맞는 컴포넌트를 표시하자
