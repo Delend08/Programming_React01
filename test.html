@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>완벽 렌주룰 오목 게임</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f5f5f5;
+            font-family: 'Malgun Gothic', sans-serif;
+            margin: 0;
+        }
+        h1 { margin: 5px 0; color: #2c3e50; }
+        #status {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            font-weight: bold;
+            height: 30px;
+        }
+        canvas {
+            background-color: #e6b06c;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.25);
+            border-radius: 6px;
+        }
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 25px;
+            font-size: 1rem;
+            background-color: #34495e;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background-color: #2c3e50; }
+        #forbidden-msg {
+            color: #e74c3c;
+            font-weight: bold;
+            margin-top: 5px;
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>오목 : 렌주룰 (Renju Rule)</h1>
+    <div id="status">흑돌(Black)의 차례입니다.</div>
+    <canvas id="board" width="600" height="600"></canvas>
+    <div id="forbidden-msg"></div>
+    <div class="controls">
+        <button onclick="resetGame()">게임 재시작</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('board');
+        const ctx = canvas.getContext('2d');
+        const statusDiv = document.getElementById('status');
+        const msgDiv = document.getElementById('forbidden-msg');
+
+        const size = 15; 
+        const margin = 40;
+        const cellSize = (canvas.width - margin * 2) / (size - 1);
+        const stoneRadius = cellSize * 0.44;
+
+        let board = [];
+        let turn = 1; // 1: 흑, 2: 백
+        let gameOver = false;
+        let mousePos = { r: -1, c: -1 };
+
+        const dir = [[0,1], [1,0], [1,1], [-1,1]]; // 우, 하, 우하, 우상
+
+        function resetGame() {
+            board = Array.from(Array(size), () => Array(size).fill(0));
+            turn = 1;
+            gameOver = false;
+            msgDiv.textContent = "";
+            setStatus();
+            drawBoard();
+        }
+
+        function setStatus() {
+            if (gameOver) return;
+            statusDiv.textContent = turn === 1 ? "흑돌(Black)의 차례입니다. (금수 적용)" : "백돌(White)의 차례입니다. (제한 없음)";
+            statusDiv.style.color = turn === 1 ? "#000" : "#555";
+        }
+
+        function drawBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 격자선
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < size; i++) {
+                ctx.beginPath(); ctx.moveTo(margin, margin + i * cellSize); ctx.lineTo(canvas.width - margin, margin + i * cellSize); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(margin + i * cellSize, margin); ctx.lineTo(margin + i * cellSize, canvas.height - margin); ctx.stroke();
+            }
+
+            // 화점
+            const dots = [3, 7, 11];
+            ctx.fillStyle = '#000000';
+            for (let x of dots) {
+                for (let y of dots) {
+                    ctx.beginPath(); ctx.arc(margin + x * cellSize, margin + y * cellSize, 4, 0, Math.PI * 2); ctx.fill();
+                }
+            }
+
+            // 돌 그리기
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    if (board[r][c] !== 0) drawStone(r, c, board[r][c]);
+                }
+            }
+
+            // 흑색 턴일 때 금수 가이드 시각화 (마우스 호버)
+            if (!gameOver && turn === 1 && mousePos.r >= 0 && mousePos.r < size && mousePos.c >= 0 && mousePos.c < size && board[mousePos.r][mousePos.c] === 0) {
+                let reason = checkForbidden(mousePos.r, mousePos.c, 1);
+                if (reason) {
+                    ctx.beginPath();
+                    ctx.arc(margin + mousePos.c * cellSize, margin + mousePos.r * cellSize, stoneRadius * 0.5, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(231, 76, 60, 0.7)';
+                    ctx.fill();
+                }
+            }
+        }
+
+        function drawStone(r, c, type) {
+            const x = margin + c * cellSize;
+            const y = margin + r * cellSize;
+            ctx.beginPath();
+            ctx.arc(x, y, stoneRadius, 0, Math.PI * 2);
+            let gradient = ctx.createRadialGradient(x - stoneRadius/3, y - stoneRadius/3, stoneRadius/10, x, y, stoneRadius);
+            if (type === 1) {
+                gradient.addColorStop(0, '#555'); gradient.addColorStop(1, '#000');
+            } else {
+                gradient.addColorStop(0, '#fff'); gradient.addColorStop(1, '#ccc');
+            }
+            ctx.fillStyle = gradient; ctx.fill(); ctx.closePath();
+        }
+
+        // 특정 방향으로 연속된 돌의 개수를 세는 함수
+        function countLine(r, c, dr, dc, color, grid = board) {
+            let count = 1;
+            let nr = r + dr, nc = c + dc;
+            while (nr >= 0 && nr < size && nc >= 0 && nc < size && grid[nr][nc] === color) { count++; nr += dr; nc += dc; }
+            nr = r - dr; nc = c - dc;
+            while (nr >= 0 && nr < size && nc >= 0 && nc < size && grid[nr][nc] === color) { count++; nr -= dr; nc -= dc; }
+            return count;
+        }
+
+        // 승리 판정 (렌주룰 반영)
+        function checkWin(r, c, color) {
+            for (let [dr, dc] of dir) {
+                let len = countLine(r, c, dr, dc, color);
+                if (color === 1 && len === 5) return true; // 흑은 정확히 5목이어야 승리
+                if (color === 2 && len >= 5) return true;  // 백은 5목 이상(장목 포함) 승리
+            }
+            return false;
+        }
+
+        // --- 렌주룰 핵심: 금수 판정 알고리즘 ---
+        function checkForbidden(r, c, color) {
+            if (color === 2) return null; // 백은 금수가 없음
+
+            // 가상으로 돌을 놓아봄
+            let grid = board.map(row => [...row]);
+            grid[r][c] = 1;
+
+            // 1. 장목 체크 (6목 이상)
+            for (let [dr, dc] of dir) {
+                if (countLine(r, c, dr, dc, 1, grid) > 5) return "장목 금수 (6목 이상 착수 불가)";
+            }
+
+            // 2. 3-3 및 4-4 체크를 위한 카운터
+            let openThreeCount = 0;
+            let fourCount = 0;
+
+            for (let [dr, dc] of dir) {
+                let info = getLineInfo(r, c, dr, dc, 1, grid);
+                
+                if (info.isFour) {
+                    fourCount++;
+                }
+                if (info.isOpenThree) {
+                    // 거짓 3 판별: 이 열린 3이 다음에 4를 만들 수 있는 유효한 자리인지 탐색
+                    if (isTrueOpenThree(r, c, dr, dc, grid)) {
+                        openThreeCount++;
+                    }
+                }
+            }
+
+            if (openThreeCount >= 2) return "3·3 금수 (쌍삼 착수 불가)";
+            if (fourCount >= 2) return "4·4 금수 (쌍사 착수 불가)";
+
+            return null;
+        }
+
+        // 해당 라인의 4 및 열린 3 구조 분석
+        function getLineInfo(r, c, dr, dc, color, grid) {
+            let info = { isFour: false, isOpenThree: false };
+            
+            // 축을 따라 -5칸부터 +5칸까지의 상태를 배열로 추출
+            let line = [];
+            let centerIdx = 5;
+            for (let i = -5; i <= 5; i++) {
+                let nr = r + i * dr;
+                let nc = c + i * dc;
+                if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
+                    line.push(grid[nr][nc]);
+                } else {
+                    line.push(-1); // 벽(장해물)
+                }
+            }
+
+            // 4 판정: 돌을 하나 더 두어서 5를 만들 수 있는 공간이 존재하는가?
+            // (즉 현재 가상 돌을 포함해 연속되거나 하나 건너뛰어 총 4개의 돌이 정렬된 상태)
+            for (let i = 1; i <= 4; i++) {
+                let start = centerIdx - i;
+                let sub = line.slice(start, start + 5);
+                if (sub.includes(-1)) continue;
+                let blacks = sub.filter(x => x === 1).length;
+                let zeros = sub.filter(x => x === 0).length;
+                if (blacks === 4 && zeros === 1) {
+                    info.isFour = true;
+                    break;
+                }
+            }
+
+            // 열린 3 판정: 양쪽이 모두 열려있어 4를 만들 수 있는 형태 (돌 3개, 빈칸 2개 이상으로 이루어진 특정 유효 패턴)
+            // 대표적인 양쪽 열린 3 패턴 분석 ([0,1,1,1,0], [0,1,0,1,1,0], [0,1,1,0,1,0])
+            for (let i = 1; i <= 5; i++) {
+                let start = centerIdx - i;
+                let sub = line.slice(start, start + 6);
+                if (sub.length < 6) continue;
+                
+                // 패턴 1: 0 1 1 1 0 (가장 표준적인 활삼)
+                if (sub[0]===0 && sub[1]===1 && sub[2]===1 && sub[3]===1 && sub[4]===0) { info.isOpenThree = true; }
+                // 패턴 2: 0 1 0 1 1 0 형태
+                if (sub[0]===0 && sub[1]===1 && sub[2]===0 && sub[3]===1 && sub[4]===1 && sub[5]===0) { info.isOpenThree = true; }
+                // 패턴 3: 0 1 1 0 1 0 형태
+                if (sub[0]===0 && sub[1]===1 && sub[2]===1 && sub[3]===0 && sub[4]===1 && sub[5]===0) { info.isOpenThree = true; }
+            }
+
+            return info;
+        }
+
+        // 거짓 3판정 알고리즘: 열린 3의 빈 자리에 두었을 때 4가 되는데, 그 자리가 '금수(장목/44)'여서 못 두는 곳이라면 진짜 열린 3이 아님(거짓3).
+        function isTrueOpenThree(r, c, dr, dc, grid) {
+            let centerIdx = 5;
+            let linePositions = [];
+            for (let i = -5; i <= 5; i++) {
+                linePositions.push({ r: r + i * dr, c: c + i * dc });
+            }
+
+            // 주변 빈자리 중, 돌을 놓았을 때 '유효한 4'로 발전할 수 있는 빈칸을 찾음
+            for (let i = -4; i <= 4; i++) {
+                let idx = centerIdx + i;
+                if (idx < 0 || idx >= linePositions.length) continue;
+                let pos = linePositions[idx];
+                
+                if (pos.r >= 0 && pos.r < size && pos.c >= 0 && pos.c < size && grid[pos.r][pos.c] === 0) {
+                    // 가상으로 그 빈자리에 흑돌을 놓아봄
+                    let nextGrid = grid.map(row => [...row]);
+                    nextGrid[pos.r][pos.c] = 1;
+                    
+                    // 만약 그 자리가 단순한 4를 만드는 자리가 아니라 금수자리(장목 등)라면 이 3은 쓸 수 없는 3임.
+                    let testLen = countLine(pos.r, pos.c, dr, dc, 1, nextGrid);
+                    if (testLen === 4) {
+                        // 그 자리가 또 다른 금수(장목)인지 검사
+                        let isForbiddenSpot = false;
+                        for (let [ddr, ddc] of dir) {
+                            if (countLine(pos.r, pos.c, ddr, ddc, 1, nextGrid) > 5) {
+                                isForbiddenSpot = true;
+                            }
+                        }
+                        if (!isForbiddenSpot) return true; // 안전하게 4를 만들 수 있는 자리가 하나라도 있다면 진짜 3!
+                    }
+                }
+            }
+            return false;
+        }
+
+        // 클릭 이벤트
+        canvas.addEventListener('click', function(e) {
+            if (gameOver) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const c = Math.round((x - margin) / cellSize);
+            const r = Math.round((y - margin) / cellSize);
+
+            if (r < 0 || r >= size || c < 0 || c >= size || board[r][c] !== 0) return;
+
+            // 흑 차례일 때 금수 규칙 체크
+            if (turn === 1) {
+                let forbiddenReason = checkForbidden(r, c, 1);
+                if (forbiddenReason) {
+                    msgDiv.textContent = forbiddenReason;
+                    return; // 착수 금지
+                }
+            }
+
+            msgDiv.textContent = ""; // 경고창 초기화
+            board[r][c] = turn;
+            drawBoard();
+
+            // 승리 판정
+            if (checkWin(r, c, turn)) {
+                statusDiv.textContent = `${turn === 1 ? '흑돌(Black)' : '백돌(White)'} 승리! 🎉`;
+                statusDiv.style.color = '#e74c3c';
+                gameOver = true;
+                return;
+            }
+
+            // 턴 교체
+            turn = turn === 1 ? 2 : 1;
+            setStatus();
+            drawBoard();
+        });
+
+        // 마우스 호버 효과 (금수 실시간 확인용)
+        canvas.addEventListener('mousemove', function(e) {
+            if (gameOver || turn !== 1) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const c = Math.round((x - margin) / cellSize);
+            const r = Math.round((y - margin) / cellSize);
+
+            if (mousePos.r !== r || mousePos.c !== c) {
+                mousePos = { r, c };
+                drawBoard();
+            }
+        });
+
+        canvas.addEventListener('mouseleave', function() {
+            mousePos = { r: -1, c: -1 };
+            drawBoard();
+        });
+
+        resetGame();
+    </script>
+</body>
+</html>
